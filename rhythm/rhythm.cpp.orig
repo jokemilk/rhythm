@@ -1,0 +1,15 @@
+// rhythm.cpp : 定义控制台应用程序的入口点。
+//
+
+#include "stdafx.h"
+
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+<<<<<<< HEAD
+
+=======
+>>>>>>> 0454e1c471fff7a4679b6e625b0e7e33b7fee5a5
+	return 0;
+}
+
