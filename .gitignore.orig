@@ -25,6 +25,12 @@ obj/
 [Rr]elease*/
 _ReSharper*/
 [Tt]est[Rr]esult*
+<<<<<<< HEAD
+rhythm.opensdf
+*.sdf
+*.ipch
+=======
 *ipch
 *.sdf
 *.opensdf
+>>>>>>> 2967da5e515a1c22a5f30a3d040eda156bb7b77a
