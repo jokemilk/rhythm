@@ -131,13 +131,19 @@ int sample()
 					Tz.Min =temp;
 	//获取平均值
 					Tz.Ave = (Tz.Max+Tz.Min)/2;
-					Tz.updown = UP;
+
 				}
 	//特征判断
 				else if(!Fg.GotPoint && Tz.updown == DOWN)
 				{
 					Fg.GotPoint = 1;
+										Tz.updown = UP;
 				}
+
+//				if(Tz.updown == 0)
+//					Tz.updown =1;
+//				else
+//					Tz.updown =0;
 			}
 		}else
 		{

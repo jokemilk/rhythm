@@ -3,14 +3,14 @@
 //宏定义
 
 #define SAMPLE_RATE	200	//采样率 200HZ
-#define INI_SAMPLE_PERIOD SAMPLE_RATE*5	//初始化采用时间
+#define INI_SAMPLE_PERIOD SAMPLE_RATE*20	//初始化采用时间
 #define BUFFER_SZ	200	//缓存区大小
 #define FILTER_SZ	8//滤波长度
 #define uint unsigned int
 #define uchar unsigned char
 #define SUCCESS 1
 #define FAIL 0
-#define YULIANG 1.0f
+#define YULIANG 5.0f
 #define DOWN 1
 #define UP 0
 //函数定义
@@ -26,5 +26,5 @@ void resetcnt();
 uint openfile();
 void resetFlags();
 void test();
-
+void closefile();
 #endif
