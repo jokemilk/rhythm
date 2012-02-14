@@ -1,5 +1,6 @@
 #include "algorithm.h"
-
+#include <math.h>
+#include <stdio.h>
 
 
 //缓冲区最大长度
@@ -27,8 +28,16 @@ float delt;
 struct Flag{
 uint Fini ;//采用初始化
 uint Fini_ok ;
+uint Restcnt;
+uint GotPoint;//获取动脉瓣关闭点
 }Fg;
 
+struct File
+{
+	uint IsOpen;
+	uint cnt;
+	FILE *fp;
+}Fl;
 struct buffer_index{
 uint* start;
 uint* end;
@@ -41,9 +50,11 @@ static double Filter[FILTER_SZ]={0.025,0.0905,0.1669,0.2176,0.2176,0.1669,0.0905
 
 
 //函数体
+//初始化采样函数，用于获得波形的时域特征
 int init_sample()
 {
 	Fg.Fini = 1;
+	resetcnt();
 	Tz.Ave = 0;
 	Tz.Max = 0;
 	Tz.Min = 65535;
@@ -56,53 +67,87 @@ int init_sample()
 	stopsample();
 	return SUCCESS;
 }
-
+//采样函数，有滤波功能
 int sample()
 {
+	static uint count = 0;
+	static int count1 = 0;
+//采样原始数据
 	uint temp;
-	static int num = 0;
 	temp = read();
 	buffer_raw[buffer_raw_index.now++] = temp;
-	if(0 == buffer_raw_index.now % BUFFER_SZ)
-	{
-		buffer_raw_index.now = 0;
-	}
+//滤波
 	filter();
-	if(Fg.Fini)
+//滤波缓冲数据是否有效
+	if(Tz.useful)
 	{
-		if(INI_SAMPLE_PERIOD == ++num);//获得均值
+//预处理
+		Tz.delt = buffer_filtered[(buffer_filtered_inedx.now+BUFFER_SZ-1)%BUFFER_SZ]-buffer_filtered[(buffer_filtered_inedx.now+BUFFER_SZ-5)%BUFFER_SZ];
+		if(abs(Tz.delt) <= YULIANG && count1 == 0)
 		{
-			Fg.Fini_ok = 1;
-			num = 0;
-			Tz.Ave = (Tz.Max+Tz.Min)/2;
+			count1++;
+//获取极值
+//获取极大值
+			if(temp >0.6*Tz.Max)
+			{
+				Tz.Max = temp;
+				Tz.updown = DOWN;
+//获取周期
+				Tz.Period = count;
+//重新开始计时
+				count = 0 ;
+			}
+//获取极小值
+			else if(count > Tz.Period/2)
+			{
+				Tz.Min =temp;
+//获取平均值
+				Tz.Ave = (Tz.Max+Tz.Min)/2;
+				Tz.updown = UP;
+			}
+//特征判断
+			if(!Fg.GotPoint && Tz.updown == DOWN)
+			{
+				Fg.GotPoint = 0;
+			}
+
+		}else
+		{
+			count++;
+			count1 = 0;
 		}
-		if(temp > Tz.Max)//获取最大值
+	}else if(Fg.Restcnt)
+	{
+		Fg.Restcnt = 0;
+		count = 0;
+	}else if(count++ == SAMPLE_RATE)
+	{
+		Tz.useful = 1;
+//		count = 0;	
+	}if(count == INI_SAMPLE_PERIOD)
+	{
+		count = 0;
+		Fg.Fini_ok = 1;
+	}else
+	{
+		if(temp > Tz.Max)
 		{
 			Tz.Max = temp;	
-		}else if(temp <Tz.Min)//获取最小值
-			Tz.Min = temp;
-		if(Tz.useful)//获取周期
-		{
-			
-		}
-	}
-	if(!Tz.useful)
-	{
-		if(SAMPLE_RATE == num)
-			Tz.useful = 1;
+		}else if(temp <Tz.Min)
+			Tz.Min = temp;		
 	}
 	return SUCCESS;
 }
-
+//开始采样
 int startsample()
 {
-	restbuffer();
+	resetbuffer();
 	return SUCCESS;
 }
-
+//停止采样
 int stopsample()
 {
-	restbuffer();
+	resetbuffer();
 	Tz.updown = 0;
 	Tz.useful = 0;
 	return SUCCESS;
@@ -110,18 +155,25 @@ int stopsample()
 
 uint read()
 {
+	uint ret;
+	if(Fl.IsOpen)
+	{
+		fscanf(Fl.fp,"%d",&ret);
+		Fl.cnt++;
+		return ret;
+	}
 	return FAIL;
 }
-
+//滤波函数，平滑
 void filter()
 {
 	uint i;
-	int index = buffer_raw_index.now - 1;
+	int index = buffer_raw_index.now;
 	double temp = 0;
 	index = index ? index:(index + BUFFER_SZ);
 	for(i=0;i<FILTER_SZ;i++)
 	{
-		index = index - i;
+		index = index - 1;
 		index = (index < 0)?(index + BUFFER_SZ):(index);
 		temp+=buffer_raw[index]*Filter[i];
 	}
@@ -129,22 +181,54 @@ void filter()
 	if(0 == buffer_filtered_inedx.now%BUFFER_SZ)
 		buffer_filtered_inedx.now = 0;
 }
-
-void restbuffer()
+//对缓冲清零、指针复位
+void resetbuffer()
 {
 	int i;
 	uint *p1,*p2;
-	p1 = buffer_raw_index.start;
-	p2 = buffer_filtered_inedx.start;
 	buffer_raw_index.start = buffer_raw;
 	buffer_raw_index.now = 0;
 	buffer_raw_index.end = buffer_raw_index.start + BUFFER_SZ -1;
 	buffer_filtered_inedx.start = buffer_filtered;
 	buffer_filtered_inedx.now = 0;
 	buffer_filtered_inedx.end = buffer_filtered_inedx.start + BUFFER_SZ -1;
+	p1 = buffer_raw_index.start;
+	p2 = buffer_filtered_inedx.start;
 	for(i=0;i<BUFFER_SZ;i++)
 	{
 		*p1++ = 0;
 		*p2++ = 0;
 	}
+}
+//清空定时器计数器
+void resetcnt()
+{
+	Fg.Restcnt = 1;
+}
+uint openfile()
+{
+	Fl.fp = fopen("data.txt","r");
+	if(Fl.fp == NULL)
+	{
+		return FAIL;
+	}
+	Fl.IsOpen = 1;
+	Fl.cnt = 0;
+	return SUCCESS;
+}
+
+void resetFlags()
+{
+	Fg.Fini = 0;
+	Fg.Fini_ok = 0;
+	Fg.GotPoint = 0;
+	Fg.Restcnt = 0;
+}
+
+void test()
+{
+	resetFlags();
+	resetbuffer();
+	openfile();
+	init_sample();
 }

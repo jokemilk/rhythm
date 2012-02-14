@@ -10,6 +10,9 @@
 #define uchar unsigned char
 #define SUCCESS 1
 #define FAIL 0
+#define YULIANG 1.0f
+#define DOWN 1
+#define UP 0
 //函数定义
 
 int sample();//读函数/采样函数
@@ -18,6 +21,10 @@ int stopsample();//停止采样
 void filter();//滤波函数
 uint read();//读IO
 int init_sample();//初始化函数
-void restbuffer();
+void resetbuffer();
+void resetcnt();
+uint openfile();
+void resetFlags();
+void test();
 
 #endif
