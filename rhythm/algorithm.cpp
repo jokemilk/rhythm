@@ -22,7 +22,7 @@ uint RelaxPeriod;//舒缓期长度
 uint Ave; //平均值
 uint useful;//数据是够有效
 uint updown;//0->上升期 1->下降期
-float delt;
+float delt[2];
 }Tz;
 
 struct Flag{
@@ -52,7 +52,7 @@ int now;
 }buffer_filtered_inedx;
 
 //滤波器参数
-static double Filter[FILTER_SZ]={0.025,0.0905,0.1669,0.2176,0.2176,0.1669,0.0905,0.025};
+static double Filter[FILTER_SZ]={0.0505,0.0027,0.0505,-1.5013,0.6051};
 
 
 //函数体
@@ -78,7 +78,7 @@ int sample()
 {
 	static int count1 = 0;
 	static int count2 = 0;
-	static int count3 = 0;
+//	static int count3 = 0;
 //采样原始数据
 	uint temp;
 	temp = read();
@@ -89,6 +89,7 @@ int sample()
 	}
 //滤波
 	filter();
+	temp = buffer_filtered[(buffer_filtered_inedx.now+BUFFER_SZ-1)%BUFFER_SZ];
 	if(Fg.Fini)
 	{
 		if(count2++ == INI_SAMPLE_PERIOD)
@@ -107,18 +108,23 @@ int sample()
 	if(Tz.useful == 1)
 	{
 //预处理
-		Tz.delt = buffer_filtered[(buffer_filtered_inedx.now+BUFFER_SZ-1)%BUFFER_SZ]-buffer_filtered[(buffer_filtered_inedx.now+BUFFER_SZ-5)%BUFFER_SZ];		 
-		if(abs(Tz.delt) <= YULIANG)
+		Tz.delt[0] = Tz.delt[1];
+		Tz.delt[1] = buffer_filtered[(buffer_filtered_inedx.now+BUFFER_SZ-1)%BUFFER_SZ]-buffer_filtered[(buffer_filtered_inedx.now+BUFFER_SZ-4)%BUFFER_SZ];		 
+		if(Tz.delt[0]*Tz.delt[1] <0)
 		{
-			if(count3 == 0)
-			{
-				count3++;
+//			if(count3 == 0)
+//			{
+//				count3++;
 	//获取极值
 	//获取极大值
-				if(temp >Tz.Ave)
+				if(temp >Tz.Ave && (uint)count1 > (Tz.Period/2))
 				{
 					Tz.Max = temp;
-					Tz.updown = DOWN;
+					Tz.updown = TOP;
+					//if(Tz.updown == DOWN)
+					//	Tz.updown = UP;
+					//else
+					//	Tz.updown = DOWN;
 	//获取周期
 					Tz.Period = count1;
 	//重新开始计时
@@ -126,23 +132,26 @@ int sample()
 					Fg.GotPoint = 0;
 				}
 	//获取极小值
-				else if((uint)count1 > (Tz.Period/2))
+				else if((uint)count1 > (Tz.Period/2) && Tz.delt[1] > 0)
 				{
 					Tz.Min =temp;
 	//获取平均值
 					Tz.Ave = (Tz.Max+Tz.Min)/2;
-					Tz.updown = UP;
+					Tz.updown = BOTTOM;
 				}
-	//特征判断
-				else if(!Fg.GotPoint && Tz.updown == DOWN)
-				{
-					Fg.GotPoint = 1;
-				}
-			}
+
+//			}
+//			count1++;
 		}else
 		{
+	//特征判断
+			if(!Fg.GotPoint && Tz.updown == TOP && abs(Tz.delt[1]) < YULIANG && count1 > 10)
+			{
+				Fg.GotPoint = 1;
+				Tz.updown = HCLOSED;
+			}
 			count1 = count1+1;
-			count3 = 0;
+//			count3 = 0;
 		}	
 	}else if(Tz.useful == 0)
 	{
@@ -160,9 +169,9 @@ int sample()
 				Tz.Min = temp,Tz.Ave = (Tz.Max+Tz.Min)/2;			
 		}
 	}
-	if(Tz.updown == 1)
+	if(Tz.updown != 1)
 		fprintf(Fr.fp,"%d  ",100);
-	else
+	else 
 		fprintf(Fr.fp,"%d  ",0);
 	return SUCCESS;
 }
@@ -201,11 +210,18 @@ void filter()
 	int index = buffer_raw_index.now;
 	double temp = 0;
 	index = index ? index:(index + BUFFER_SZ);
-	for(i=0;i<FILTER_SZ;i++)
+	for(i=0;i<FILTER_SZ_1;i++)
 	{
 		index = index - 1;
 		index = (index < 0)?(index + BUFFER_SZ):(index);
 		temp+=buffer_raw[index]*Filter[i];
+	}
+	index = buffer_filtered_inedx.now;
+	for(i=0;i<(FILTER_SZ-FILTER_SZ_1);i++)
+	{
+		index = index - 1;
+		index = (index < 0)?(index + BUFFER_SZ):(index);
+		temp-=buffer_filtered[index]*Filter[i+FILTER_SZ_1];
 	}
 	buffer_filtered[buffer_filtered_inedx.now++] = temp;
 	if(0 == buffer_filtered_inedx.now%BUFFER_SZ)
