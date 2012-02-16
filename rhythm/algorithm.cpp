@@ -22,6 +22,7 @@ uint RelaxPeriod;//舒缓期长度
 uint Ave; //平均值
 uint useful;//数据是够有效
 uint updown;//0->上升期 1->下降期
+uint ClosePoint;
 float delt[2];
 }Tz;
 
@@ -117,7 +118,7 @@ int sample()
 //				count3++;
 	//获取极值
 	//获取极大值
-				if(temp >Tz.Ave && (uint)count1 > (Tz.Period/2))
+			if(temp >Tz.Ave && (uint)count1 > (Tz.Period/2)&& Tz.updown == BOTTOM)
 				{
 					Tz.Max = temp;
 					Tz.updown = TOP;
@@ -132,12 +133,13 @@ int sample()
 					Fg.GotPoint = 0;
 				}
 	//获取极小值
-				else if((uint)count1 > (Tz.Period/2) && Tz.delt[1] > 0)
+				else if((uint)count1 > (Tz.ClosePoint+Tz.RelaxPeriod*0.66) && (uint)count1 > (Tz.Period*0.5)&& Tz.delt[1] > 0 && Tz.updown == HCLOSED)
 				{
 					Tz.Min =temp;
 	//获取平均值
 					Tz.Ave = (Tz.Max+Tz.Min)/2;
 					Tz.updown = BOTTOM;
+					Tz.RelaxPeriod = count1 - Tz.ClosePoint;
 				}
 
 //			}
@@ -149,6 +151,7 @@ int sample()
 			{
 				Fg.GotPoint = 1;
 				Tz.updown = HCLOSED;
+				Tz.ClosePoint = count1;
 			}
 			count1 = count1+1;
 //			count3 = 0;
@@ -169,10 +172,12 @@ int sample()
 				Tz.Min = temp,Tz.Ave = (Tz.Max+Tz.Min)/2;			
 		}
 	}
-	if(Tz.updown != 1)
-		fprintf(Fr.fp,"%d  ",100);
+	if(Tz.updown ==TOP)
+		fprintf(Fr.fp,"%d  \n",100);
+	else if(Tz.updown == HCLOSED)
+		fprintf(Fr.fp,"%d  \n",50);
 	else 
-		fprintf(Fr.fp,"%d  ",0);
+		fprintf(Fr.fp,"%d  \n",0);
 	return SUCCESS;
 }
 //开始采样
