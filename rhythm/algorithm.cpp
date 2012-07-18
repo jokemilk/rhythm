@@ -22,6 +22,7 @@ uint RelaxPeriod;//舒缓期长度
 uint Ave; //平均值
 uint useful;//数据是够有效
 uint updown;//0->上升期 1->下降期
+uint MID;
 uint ClosePoint;
 float delt[2];
 }Tz;
@@ -152,6 +153,7 @@ int sample()
 				Fg.GotPoint = 1;
 				Tz.updown = HCLOSED;
 				Tz.ClosePoint = count1;
+				Tz.MID = temp;
 			}
 			count1 = count1+1;
 //			count3 = 0;
@@ -173,11 +175,11 @@ int sample()
 		}
 	}
 	if(Tz.updown ==TOP)
-		fprintf(Fr.fp,"%d  \n",100);
+		fprintf(Fr.fp,"%d  \n",Tz.Max+5);
 	else if(Tz.updown == HCLOSED)
-		fprintf(Fr.fp,"%d  \n",50);
+		fprintf(Fr.fp,"%d  \n",Tz.MID+5);
 	else 
-		fprintf(Fr.fp,"%d  \n",0);
+		fprintf(Fr.fp,"%d  \n",Tz.Min+5);
 	return SUCCESS;
 }
 //开始采样
